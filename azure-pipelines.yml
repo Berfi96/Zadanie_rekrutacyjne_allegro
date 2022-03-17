@@ -1,0 +1,118 @@
+name : Docker-CI
+trigger:
+  branches:
+    include:
+      - master
+pr:
+ branches:
+   include:
+    - master
+
+resources:
+- repo: self
+
+variables:
+  tags1: 'Bartlomiej.Fenik.Service1-$(Build.BuildId)'
+  tags2: 'Bartlomiej.Fenik.Service2-$(Build.BuildId)'
+  tags3: 'Bartlomiej.Fenik.Service3-$(Build.BuildId)'
+  dockerRegistryConnection: 'bfenik-dockerhub'
+  imageRepository: 'bfenik/allegro-zadanie'
+
+stages:
+- stage: Build
+  displayName: Build images
+  jobs:
+  - job: Service_1
+    displayName: Build Service 1
+    pool:
+      name: Own
+    steps:
+    - task: Docker@2
+      displayName: Build an image of Service 1
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/Bartlomiej.Fenik.Service1/Dockerfile'
+        tags: '$(tags1)'
+
+  - job: Service_2
+    displayName: Build Service 2
+    pool:
+      name: Own
+    steps:
+    - task: Docker@2
+      displayName: Build an image of Service 2
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/Bartlomiej.Fenik.Service2/Dockerfile'
+        tags: '$(tags2)'
+
+  - job: Service_3
+    displayName: Build Service 3
+    pool:
+      name: Own
+    steps:
+    - task: Docker@2
+      displayName: Build an image of Service 3
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/Bartlomiej.Fenik.Service3/Dockerfile'
+        tags: '$(tags3)'
+- stage: Push
+  displayName: Push images
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: Push
+    displayName: Push all images
+    pool:
+      name: Own
+    steps:
+    - task: Docker@2
+      displayName: Push image 1
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: push
+        tags: |
+          $(tags1)
+    - task: Docker@2
+      displayName: Push image 2
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: push
+        tags: |
+          $(tags2)
+    - task: Docker@2
+      displayName: Push image 3
+      inputs:
+        containerRegistry: $(dockerRegistryConnection)
+        repository:  $(imageRepository)
+        command: push
+        tags: |
+          $(tags3)                  
+          
+- stage: Clean
+  displayName: Delete images
+  condition: always()
+  jobs:
+  - job: Clean
+    displayName: Delete images
+    pool:
+      name: Own
+    steps:
+    - task: Bash@3
+      displayName: Delete images
+      condition: always()
+      inputs:
+        targetType: 'inline'
+        script: |
+          docker rmi $(imageRepository):$(tags1) $(imageRepository):$(tags2) $(imageRepository):$(tags3)
+      
+      
